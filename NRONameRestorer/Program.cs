@@ -22,6 +22,8 @@ namespace NRONameRestorer
 
         static IList<TypeDef> unRenamedInterfaces = new List<TypeDef>();
 
+        static bool isRestoreMethodParameterName, isRestoreMethodOverrideName, isRestoreImplementMethodName;
+
         static void Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
@@ -45,11 +47,20 @@ namespace NRONameRestorer
                 originalModulePath = Console.ReadLine().Replace("\"", "");
             }
             else originalModulePath = args[1];
+            Console.Write("Bạn có muốn phục hồi tên đối số không [Y/N] (mặc định: Y)? ");
+            ReadBool(ref isRestoreMethodParameterName);
+            Console.Write("Bạn có muốn phục hồi tên method override không [Y/N] (mặc định: Y)? ");
+            ReadBool(ref isRestoreMethodOverrideName);
+            Console.Write("Bạn có muốn phục hồi tên method của interface không [Y/N] (mặc định: Y)? ");
+            ReadBool(ref isRestoreImplementMethodName);
             obfuscatedModule = AssemblyDef.Load(obfuscatedModulePath).ManifestModule;
             originalModule = AssemblyDef.Load(originalModulePath).ManifestModule;
             RestoreName(obfuscatedModule.Types);
-            RestoreImplementedMethodsName();
-            RestoreUnrenamedInterfaceName();
+            if (isRestoreImplementMethodName)
+            {
+                RestoreImplementedMethodsName();
+                RestoreUnrenamedInterfaceName();
+            }
             string outputfile = Path.GetFileNameWithoutExtension(obfuscatedModulePath) + "-NameRestored" + Path.GetExtension(obfuscatedModulePath);
             obfuscatedModule.Write(outputfile);
             Console.WriteLine("Tệp đã phục hồi tên được lưu tại: " + outputfile);
@@ -136,9 +147,9 @@ namespace NRONameRestorer
                     int methodsCount = typeObf.Methods.Count < typeOri.Methods.Count ? typeObf.Methods.Count : typeOri.Methods.Count;
                     for (; c < methodsCount; c++)
                     {
-                        if (typeObf.Methods[c].HasOverrides) foreach (MethodOverride method in typeObf.Methods[c].Overrides) method.MethodBody.Name = typeOri.Methods[c].Name;
+                        if (isRestoreMethodOverrideName && typeObf.Methods[c].HasOverrides) foreach (MethodOverride method in typeObf.Methods[c].Overrides) method.MethodBody.Name = typeOri.Methods[c].Name;
                         typeObf.Methods[c].Name = typeOri.Methods[c].Name;
-                        for (int num2 = 0; num2 < typeObf.Methods[c].Parameters.Count; num2++)
+                        if (isRestoreMethodParameterName) for (int num2 = 0; num2 < typeObf.Methods[c].Parameters.Count; num2++)
                         {
                             typeObf.Methods[c].Parameters[num2].Name = typeOri.Methods[c].Parameters[num2].Name;
                         }
@@ -179,6 +190,22 @@ namespace NRONameRestorer
                     }
                 }
             }
+        }
+        static void ReadBool(ref bool b)
+        {
+            string s;
+            do
+            {
+                s = Console.ReadLine();
+                if (string.IsNullOrEmpty(s))
+                {
+                    b = true;
+                    break;
+                }
+                if (s.ToLower() != "y" && s.ToLower() != "n") Console.WriteLine("Vui lòng nhập \"Y\" hoặc \"N\"!");
+            } while (s.ToLower() != "y" && s.ToLower() != "n");
+            if (s.ToLower() == "y") b = true;
+            else if (s.ToLower() == "n") b = false;
         }
     }
 }
